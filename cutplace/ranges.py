@@ -226,7 +226,12 @@ class Range(object):
                     if next_type in (token.NAME, token.NUMBER, token.STRING):
                         if next_type == token.NAME:
                             # Symbolic names, e.g. ``tab``.
-                            value_as_int = code_for_symbolic_token(name_for_code, next_value, location)
+                            if next_value.startswith(ELLIPSIS) or next_value.startswith(':'):
+                                ellipsis_found = True
+                                value_as_int = code_for_number_token(
+                                    name_for_code, next_value[1:], location)
+                            else:
+                                value_as_int = code_for_symbolic_token(name_for_code, next_value, location)
                         elif next_type == token.NUMBER:
                             # Numbers, e.g. ``123``.
                             value_as_int = code_for_number_token(name_for_code, next_value, location)
