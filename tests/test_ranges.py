@@ -237,6 +237,28 @@ class DecimalRangeTest(unittest.TestCase):
         self.assertEquals(ranges.DecimalRange("1.1...2.1").items, [(decimal.Decimal('1.1'), decimal.Decimal('2.1'))])
         self.assertEquals(ranges.DecimalRange("-1.1...2.1").items, [(decimal.Decimal('-1.1'), decimal.Decimal('2.1'))])
 
+    def test_can_handle_ellipsis_directly_adjacent_to_digits(self):
+        """
+        Regression test (MMS): starting with Python 3.12, the tokenizer
+        merges an unrecognized character like the ellipsis directly into
+        an adjacent NUMBER as a single NAME token when there is no
+        separating whitespace (e.g. "0…99999.99" tokenizes as NUMBER
+        "0", NAME "…99999", NUMBER ".99"). A whole-number lower bound
+        immediately followed by the ellipsis and an upper bound with a
+        decimal point (the shape found in several production .ods
+        schemas, e.g. a monetary "0…99999.99") used to raise
+        InterfaceError under Python 3.12 even though it worked under
+        earlier versions and still does today (see
+        test_can_handle_proper_decimal_ranges's "1.1…2.1" case, which
+        has a dot on both sides and does not trigger the merge).
+        """
+        self.assertEqual(
+            ranges.DecimalRange("0" + "…" + "99999.99").items,
+            [(decimal.Decimal('0'), decimal.Decimal('99999.99'))])
+        self.assertEqual(
+            ranges.DecimalRange("0" + "…" + "99999").items,
+            [(0, decimal.Decimal('99999'))])
+
     def test_can_set_precision_and_scale(self):
         empty_range = ranges.DecimalRange('')
         self.assertEqual(empty_range.precision, ranges.DEFAULT_PRECISION)

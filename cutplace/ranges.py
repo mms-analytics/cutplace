@@ -539,7 +539,25 @@ class DecimalRange(Range):
             self._lower_limit = None
             self._upper_limit = None
         else:
-            self._description = description.replace('...', ELLIPSIS)
+            # Pad the ellipsis with spaces so Python's tokenizer always
+            # sees it as its own token. Starting with Python 3.12 the
+            # tokenizer merges an unrecognized character (like the
+            # ellipsis) directly into an adjacent NUMBER as a single NAME
+            # token when there is no separating whitespace (e.g.
+            # "0…99999.99" tokenizes as NUMBER "0", NAME
+            # "…99999", NUMBER ".99" instead of NUMBER "0",
+            # (ERROR)TOKEN "…", NUMBER "99999.99"), which the parsing
+            # loop below cannot handle. Range (above) already works
+            # around this for its own, simpler int-only grammar by
+            # detecting a NAME token that *starts with* the ellipsis; that
+            # approach doesn't transfer here because a decimal split
+            # across the merged token and a following ".99" token would
+            # need reassembling. Padding sidesteps the issue for any
+            # Python tokenizer version by ensuring the merge never
+            # happens, so it is applied only here, not to Range's own
+            # normalization, whose existing fix already assumes an
+            # unpadded, potentially-merged token.
+            self._description = description.replace('...', ELLIPSIS).replace(ELLIPSIS, ' ' + ELLIPSIS + ' ')
             self._items = []
             tokens = _tools.tokenize_without_space(self._description)
             end_reached = False
