@@ -207,7 +207,10 @@ class Range(object):
             self._lower_limit = None
             self._upper_limit = None
         else:
-            self._description = description.replace('...', ELLIPSIS)
+            # Pad the ellipsis with spaces so that, from Python 3.12 on,
+            # the tokenizer never merges it with an adjacent name (e.g.
+            # "tab…vt"); DecimalRange does the same for the digit case.
+            self._description = description.replace('...', ELLIPSIS).replace(ELLIPSIS, ' ' + ELLIPSIS + ' ')
             self._items = []
 
             name_for_code = 'range'
@@ -223,7 +226,12 @@ class Range(object):
                 while not _tools.is_eof_token(next_token) and not _tools.is_comma_token(next_token):
                     next_type = next_token[0]
                     next_value = next_token[1]
-                    if next_type in (token.NAME, token.NUMBER, token.STRING):
+                    # Starting with Python 3.12 the tokenizer returns a bare
+                    # ellipsis (one that is followed by a minus sign, a comma
+                    # or the end of the text) as a NAME token rather than an
+                    # ERRORTOKEN, so it must not be treated as a symbolic
+                    # name; let it fall through to the ellipsis branch below.
+                    if next_type in (token.NAME, token.NUMBER, token.STRING) and next_value not in (ELLIPSIS, ':'):
                         if next_type == token.NAME:
                             # Symbolic names, e.g. ``tab``.
                             if next_value.startswith(ELLIPSIS) or next_value.startswith(':'):
