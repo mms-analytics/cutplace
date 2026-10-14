@@ -237,6 +237,26 @@ class DecimalRangeTest(unittest.TestCase):
         self.assertEquals(ranges.DecimalRange("1.1...2.1").items, [(decimal.Decimal('1.1'), decimal.Decimal('2.1'))])
         self.assertEquals(ranges.DecimalRange("-1.1...2.1").items, [(decimal.Decimal('-1.1'), decimal.Decimal('2.1'))])
 
+    def test_can_handle_bare_ellipsis_before_minus_or_end(self):
+        """
+        Regression test (MMS): starting with Python 3.12, an ellipsis that
+        is followed by a minus sign, a comma or the end of the text comes
+        back from the tokenizer as a NAME token "…" with nothing merged
+        into it. Range used to strip its first character and parse the
+        empty remainder as a number, raising InterfaceError. This is the
+        shape create_range_from_length builds for every fixed-length
+        integer field (e.g. an EIN of length 9), so such fields could not
+        be declared on Python 3.12. An ellipsis between symbolic names
+        ("tab…vt") was merged into one NAME token the same way.
+        """
+        self.assertEqual(ranges.Range("1" + "…").items, [(1, None)])
+        self.assertEqual(ranges.Range("tab" + "…" + "vt").items, [(9, 11)])
+        self.assertEqual(ranges.Range("-9" + "…" + "-1").items, [(-9, -1)])
+        self.assertEqual(ranges.Range("-9" + "…" + "-1, 1" + "…" + "9").items, [(-9, -1), (1, 9)])
+        self.assertEqual(
+            ranges.create_range_from_length(ranges.Range("9")).items,
+            [(-99999999, -10000000), (100000000, 999999999)])
+
     def test_can_handle_ellipsis_directly_adjacent_to_digits(self):
         """
         Regression test (MMS): starting with Python 3.12, the tokenizer
